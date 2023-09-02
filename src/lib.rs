@@ -139,6 +139,11 @@ mod tests {
     }
 
     #[test]
+    fn assert_chunk_impl() {
+        assert_impl_all!(Chunk<Cursor<Vec<u8>>>: Read, Seek, Write);
+    }
+
+    #[test]
     fn assert_start_position_with_no_offset() {
         let data = [0u8; 10];
         let stream = Cursor::new(data);
