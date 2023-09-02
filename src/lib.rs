@@ -106,6 +106,22 @@ where
     }
 }
 
+impl<T> Write for Chunk<T>
+where
+    T: Stream,
+{
+    fn write(&mut self, buf: &[u8]) -> Result<usize> {
+        let max = min(buf.len() as u64, self.remainder_len()) as usize;
+        let n = self.inner.write(&buf[..max])?;
+        self.pos += n as u64;
+        Ok(n)
+    }
+
+    fn flush(&mut self) -> Result<()> {
+        self.inner.flush()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::io::Cursor;
@@ -317,5 +333,32 @@ mod tests {
         assert_eq!(buf[..stream_len], data);
         assert_eq!(buf[stream_len..], original[stream_len..]);
         assert_eq!(chunk.stream_position().unwrap(), stream_len as u64);
+    }
+
+    #[test]
+    fn assert_write_impl_for_chunk_with_limit() {
+        let original = [0u8; 10];
+        let mut data = original;
+        let stream = Cursor::new(data.as_mut());
+        let limit = 5u64;
+        let mut chunk = stream.chunk(Some(limit));
+        let buf = [1u8; 10];
+        assert_eq!(chunk.write(&buf).unwrap(), limit as usize);
+        assert_eq!(chunk.stream_position().unwrap(), limit);
+        assert_eq!(buf[..(limit as usize)], data[..(limit as usize)]);
+        assert_eq!(data[(limit as usize)..], original[(limit as usize)..]);
+    }
+
+    #[test]
+    fn assert_write_impl_for_chunk_without_limit() {
+        let original = [0u8; 10];
+        let mut data = original;
+        let stream_len = data.len();
+        let stream = Cursor::new(data.as_mut());
+        let mut chunk = stream.chunk(None);
+        let buf = [1u8; 11];
+        assert_eq!(chunk.write(&buf).unwrap(), stream_len);
+        assert_eq!(chunk.stream_position().unwrap(), stream_len as u64);
+        assert_eq!(buf[..stream_len], data);
     }
 }
