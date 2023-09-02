@@ -42,7 +42,7 @@ impl<T> Chunk<T> {
 
 impl<T> Chunk<T>
 where
-    T: Stream,
+    T: Seek,
 {
     pub fn into_inner(self) -> T {
         self.inner
@@ -68,7 +68,7 @@ where
 
 impl<T> Seek for Chunk<T>
 where
-    T: Stream,
+    T: Seek,
 {
     fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
         let start_position = self.start_position()?;
@@ -98,7 +98,7 @@ where
 
 impl<T> Read for Chunk<T>
 where
-    T: Stream,
+    T: Read,
 {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
         let max = min(buf.len() as u64, self.remainder_len()) as usize;
@@ -110,7 +110,7 @@ where
 
 impl<T> Write for Chunk<T>
 where
-    T: Stream,
+    T: Write,
 {
     fn write(&mut self, buf: &[u8]) -> Result<usize> {
         let max = min(buf.len() as u64, self.remainder_len()) as usize;
