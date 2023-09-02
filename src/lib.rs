@@ -29,6 +29,10 @@ impl<T> Chunk<T>
 where
     T: Stream,
 {
+    pub fn into_inner(self) -> T {
+        self.inner
+    }
+
     fn start_position(&mut self) -> Result<u64> {
         Ok(self.inner.stream_position()? - self.pos)
     }
@@ -224,5 +228,15 @@ mod tests {
         assert_eq!(chunk.stream_position().unwrap(), 0u64);
         assert_eq!(chunk.seek(SeekFrom::Start(1)).unwrap(), 1u64);
         assert_eq!(chunk.stream_position().unwrap(), 1u64);
+    }
+
+    #[test]
+    fn assert_into_inner_impl_for_chunk() {
+        let data = [0u8; 10];
+        let mut stream = Cursor::new(data);
+        let mut chunk = stream.chunk(None);
+        chunk.seek(SeekFrom::Start(1)).unwrap();
+        stream = chunk.into_inner();
+        assert_eq!(stream.stream_position().unwrap(), 1u64);
     }
 }
