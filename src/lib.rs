@@ -161,6 +161,47 @@ where
     }
 }
 
+pub trait IStream: Write + Seek {
+    fn ichunk(self, limit: Option<u64>) -> IChunk<Self>
+    where
+        Self: Sized,
+    {
+        IChunk {
+            0: Chunk {
+                inner: self,
+                pos: 0,
+                limit,
+            },
+        }
+    }
+}
+
+impl<T> IStream for T where T: Write + Seek {}
+
+pub struct IChunk<T>(Chunk<T>);
+
+impl<T> Seek for IChunk<T>
+where
+    T: Seek,
+{
+    fn seek(&mut self, pos: SeekFrom) -> Result<u64> {
+        self.0.seek(pos)
+    }
+}
+
+impl<T> Write for IChunk<T>
+where
+    T: Write,
+{
+    fn write(&mut self, buf: &[u8]) -> Result<usize> {
+        self.0.write(buf)
+    }
+
+    fn flush(&mut self) -> Result<()> {
+        self.0.flush()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::io::Cursor;
@@ -181,14 +222,6 @@ mod tests {
     }
 
     #[test]
-    fn assert_start_position_with_no_offset() {
-        let data = [0u8; 10];
-        let stream = Cursor::new(data);
-        let mut chunk = stream.chunk(None);
-        assert_eq!(chunk.start_position().unwrap(), 0);
-    }
-
-    #[test]
     fn assert_ostream_impl() {
         assert_impl_all!(dyn OStream: Read, Seek);
         assert_not_impl_any!(dyn OStream: Write);
@@ -198,6 +231,26 @@ mod tests {
     fn assert_ochunk_impl() {
         assert_impl_all!(OChunk<Cursor<Vec<u8>>>: Read, Seek);
         assert_not_impl_any!(OChunk<Cursor<Vec<u8>>>: Write);
+    }
+
+    #[test]
+    fn assert_istream_impl() {
+        assert_impl_all!(dyn IStream: Write, Seek);
+        assert_not_impl_any!(dyn IStream: Read);
+    }
+
+    #[test]
+    fn assert_ichunk_impl() {
+        assert_impl_all!(IChunk<Cursor<Vec<u8>>>: Write, Seek);
+        assert_not_impl_any!(IChunk<Cursor<Vec<u8>>>: Read);
+    }
+
+    #[test]
+    fn assert_start_position_with_no_offset() {
+        let data = [0u8; 10];
+        let stream = Cursor::new(data);
+        let mut chunk = stream.chunk(None);
+        assert_eq!(chunk.start_position().unwrap(), 0);
     }
 
     #[test]
