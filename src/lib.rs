@@ -25,6 +25,21 @@ pub struct Chunk<T> {
     limit: Option<u64>,
 }
 
+impl<T> Chunk<T> {
+    fn remainder_len(&self) -> u64 {
+        match self.limit {
+            None => u64::MAX,
+            Some(v) => match v {
+                u64::MAX => u64::MAX,
+                _ => match v.checked_sub(self.pos) {
+                    None => 0u64,
+                    Some(v) => v,
+                },
+            },
+        }
+    }
+}
+
 impl<T> Chunk<T>
 where
     T: Stream,
@@ -48,19 +63,6 @@ where
         };
         self.inner.seek(SeekFrom::Start(rollback_position))?;
         Ok(end_position)
-    }
-
-    fn remainder_len(&self) -> u64 {
-        match self.limit {
-            None => u64::MAX,
-            Some(v) => match v {
-                u64::MAX => u64::MAX,
-                _ => match v.checked_sub(self.pos) {
-                    None => 0u64,
-                    Some(v) => v,
-                },
-            },
-        }
     }
 }
 
