@@ -49,6 +49,19 @@ where
         self.inner.seek(SeekFrom::Start(rollback_position))?;
         Ok(end_position)
     }
+
+    fn remainder_len(&self) -> u64 {
+        match self.limit {
+            None => u64::MAX,
+            Some(v) => match v {
+                u64::MAX => u64::MAX,
+                _ => match v.checked_sub(self.pos) {
+                    None => 0u64,
+                    Some(v) => v,
+                },
+            },
+        }
+    }
 }
 
 impl<T> Seek for Chunk<T>
@@ -238,5 +251,31 @@ mod tests {
         chunk.seek(SeekFrom::Start(1)).unwrap();
         stream = chunk.into_inner();
         assert_eq!(stream.stream_position().unwrap(), 1u64);
+    }
+
+    #[test]
+    fn assert_remainder_length_impl_for_chunk_with_limit() {
+        let data = [0u8; 10];
+        let stream = Cursor::new(data);
+        let limit = 5u64;
+        let chunk = stream.chunk(Some(limit));
+        assert_eq!(chunk.remainder_len(), limit);
+    }
+
+    #[test]
+    fn assert_remainder_length_impl_for_chunk_with_max_limit() {
+        let data = [0u8; 10];
+        let stream = Cursor::new(data);
+        let limit = u64::MAX;
+        let chunk = stream.chunk(Some(limit));
+        assert_eq!(chunk.remainder_len(), u64::MAX);
+    }
+
+    #[test]
+    fn assert_remainder_length_impl_for_chunk_without_limit() {
+        let data = [0u8; 10];
+        let stream = Cursor::new(data);
+        let chunk = stream.chunk(None);
+        assert_eq!(chunk.remainder_len(), u64::MAX);
     }
 }
