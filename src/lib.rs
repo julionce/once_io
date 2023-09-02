@@ -124,11 +124,48 @@ where
     }
 }
 
+pub trait OStream: Read + Seek {
+    fn ochunk(self, limit: Option<u64>) -> OChunk<Self>
+    where
+        Self: Sized,
+    {
+        OChunk {
+            0: Chunk {
+                inner: self,
+                pos: 0,
+                limit,
+            },
+        }
+    }
+}
+
+impl<T> OStream for T where T: Read + Seek {}
+
+pub struct OChunk<T>(Chunk<T>);
+
+impl<T> Seek for OChunk<T>
+where
+    T: Seek,
+{
+    fn seek(&mut self, pos: SeekFrom) -> Result<u64> {
+        self.0.seek(pos)
+    }
+}
+
+impl<T> Read for OChunk<T>
+where
+    T: Read,
+{
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+        self.0.read(buf)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::io::Cursor;
 
-    use sa::assert_impl_all;
+    use sa::{assert_impl_all, assert_not_impl_any};
 
     use super::*;
 
@@ -149,6 +186,18 @@ mod tests {
         let stream = Cursor::new(data);
         let mut chunk = stream.chunk(None);
         assert_eq!(chunk.start_position().unwrap(), 0);
+    }
+
+    #[test]
+    fn assert_ostream_impl() {
+        assert_impl_all!(dyn OStream: Read, Seek);
+        assert_not_impl_any!(dyn OStream: Write);
+    }
+
+    #[test]
+    fn assert_ochunk_impl() {
+        assert_impl_all!(OChunk<Cursor<Vec<u8>>>: Read, Seek);
+        assert_not_impl_any!(OChunk<Cursor<Vec<u8>>>: Write);
     }
 
     #[test]
