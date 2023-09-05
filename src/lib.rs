@@ -1,3 +1,5 @@
+pub mod read_num;
+
 #[cfg(test)]
 extern crate static_assertions as sa;
 
