@@ -28,6 +28,10 @@ pub struct Chunk<T> {
 }
 
 impl<T> Chunk<T> {
+    pub fn into_inner(self) -> T {
+        self.inner
+    }
+
     fn remainder_len(&self) -> u64 {
         match self.limit {
             None => u64::MAX,
@@ -46,10 +50,6 @@ impl<T> Chunk<T>
 where
     T: Seek,
 {
-    pub fn into_inner(self) -> T {
-        self.inner
-    }
-
     fn start_position(&mut self) -> Result<u64> {
         Ok(self.inner.stream_position()? - self.pos)
     }
@@ -145,6 +145,12 @@ impl<T> OStream for T where T: Read + Seek {}
 
 pub struct OChunk<T>(Chunk<T>);
 
+impl<T> OChunk<T> {
+    pub fn into_inner(self) -> T {
+        self.0.inner
+    }
+}
+
 impl<T> Seek for OChunk<T>
 where
     T: Seek,
@@ -181,6 +187,12 @@ pub trait IStream: Write + Seek {
 impl<T> IStream for T where T: Write + Seek {}
 
 pub struct IChunk<T>(Chunk<T>);
+
+impl<T> IChunk<T> {
+    pub fn into_inner(self) -> T {
+        self.0.inner
+    }
+}
 
 impl<T> Seek for IChunk<T>
 where
@@ -471,5 +483,25 @@ mod tests {
         assert_eq!(chunk.write(&buf).unwrap(), stream_len);
         assert_eq!(chunk.stream_position().unwrap(), stream_len as u64);
         assert_eq!(buf[..stream_len], data);
+    }
+
+    #[test]
+    fn assert_into_inner_impl_for_ochunk() {
+        let data = [0u8; 10];
+        let mut stream = Cursor::new(data);
+        let mut ochunk = stream.ochunk(None);
+        ochunk.seek(SeekFrom::Start(1)).unwrap();
+        stream = ochunk.into_inner();
+        assert_eq!(stream.stream_position().unwrap(), 1u64);
+    }
+
+    #[test]
+    fn assert_into_inner_impl_for_ichunk() {
+        let data = [0u8; 10];
+        let mut stream = Cursor::new(data);
+        let mut ichunk = stream.ichunk(None);
+        ichunk.seek(SeekFrom::Start(1)).unwrap();
+        stream = ichunk.into_inner();
+        assert_eq!(stream.stream_position().unwrap(), 1u64);
     }
 }
